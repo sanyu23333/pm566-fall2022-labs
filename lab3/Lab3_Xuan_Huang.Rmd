@@ -135,3 +135,4 @@ Summarize any trends that you see in these time series plots.
 Temperature rise at daytime, and decrease at night.
 The range of temperature is from 2 to 15.
 There may be a relationship between temperature and wind.
+Wind speed gets stronger at Aug 17 and Aug25.
