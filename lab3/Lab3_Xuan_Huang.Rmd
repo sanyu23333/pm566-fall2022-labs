@@ -15,7 +15,14 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 install.packages('R.utils')
-download.file("https://raw.githubusercontent.com/USCbiostats/data-science-data/master/02_met/met_all.gz", "met_all.gz", method="libcurl", timeout = 60)
+library(tidyverse)
+```
+
+
+```{r}
+if(!file.exists("met_all.gz")){
+  download.file("https://raw.githubusercontent.com/USCbiostats/data-science-data/master/02_met/met_all.gz", "met_all.gz", method="libcurl", timeout = 60)
+}
 met <- data.table::fread("met_all.gz")
 
 ```
@@ -78,7 +85,34 @@ head(met2)
 elev <- met[elev == max(elev)]
 summary(elev)
 
+cor(elev$temp, elev$wind.sp, use="complete")
+cor(elev$temp, elev$hour, use="complete")
+cor(elev$wind.sp, elev$day, use="complete")
+cor(elev$wind.sp, elev$hour, use="complete")
+cor(elev$temp, elev$day, use="complete")
+```
 
+## 7. Exploratory graphs
 
+```{r}
+hist(met$elev, breaks=100)
+hist(met$temp)
+hist(met$wind.sp)
+```
+**Look at where the weather station with highest elevation is located.**
+
+```{r}
+install.packages("leaflet")
+library(leaflet)
+leaflet(elev) %>%
+  addProviderTiles('OpenStreetMap') %>% 
+  addCircles(lat=~lat,lng=~lon, opacity=1, fillOpacity=1, radius=100)
+```
+
+```{r}
+install.packages("lubridate")
+library(lubridate)
+elev$date <- with(elev, ymd_h(paste(year, month, day, hour, sep= ' ')))
+summary(elev$date)
 ```
 
