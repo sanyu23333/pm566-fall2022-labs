@@ -116,3 +116,22 @@ elev$date <- with(elev, ymd_h(paste(year, month, day, hour, sep= ' ')))
 summary(elev$date)
 ```
 
+```{r}
+elev <- elev[order(date)]
+head(elev)
+```
+
+```{r}
+plot(elev$date, elev$temp, type='l')
+
+
+```
+
+
+```{r}
+plot(elev$date, elev$wind.sp, type='l')
+```
+Summarize any trends that you see in these time series plots.
+Temperature rise at daytime, and decrease at night.
+The range of temperature is from 2 to 15.
+There may be a relationship between temperature and wind.
