@@ -83,7 +83,7 @@ head(met2)
 
 ```{r}
 elev <- met[elev == max(elev)]
-summary(elev)
+#summary(elev)
 
 cor(elev$temp, elev$wind.sp, use="complete")
 cor(elev$temp, elev$hour, use="complete")
