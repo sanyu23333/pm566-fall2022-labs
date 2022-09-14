@@ -19,7 +19,7 @@ library("data.table")
 
 ## 1. Read in the data
 
-```{r}
+```{r read-data, cache=TRUE}
 if (!file.exists("met_all.gz"))
   download.file(
     url = "https://raw.githubusercontent.com/USCbiostats/data-science-data/master/02_met/met_all.gz",
@@ -32,7 +32,7 @@ met <- data.table::fread("met_all.gz")
 
 ## 2. Prepare the data
 
-```{r}
+```{r create-ymd, cache=TRUE}
 #Remove temperatures less than -17C
 head(met)
 met <- met[met$temp >= -17]
@@ -74,8 +74,43 @@ met_avg
 ```
 ```{r}
 #Create a region variable for NW, SW, NE, SE based on lon = -98.00 and lat = 39.71 degrees
+met_avg[, region := fifelse(lon >= -98 & lat > 39.71, "NE",
+                    fifelse(lon < -98 & lat > 39.71, "NW",
+                    fifelse(lon < -98 & lat <= 39.71, "SW", "SE"
+                    )))]
+table(met_avg$region)
+```
 
+```{r}
+#Create a categorical variable for elevation as in the lecture slides
+met_avg[, elev_cat := fifelse(elev > 252, "high", "low")]
+table(met_avg$elev_cat)
+```
+
+## 3. Use geom_violin to examine the wind speed and dew point temperature by region
+
+
+```{r violin}
+#wind speed
+met_avg[!is.na(elev_cat) & !is.na(region)] %>%  # deal with NA category
+ggplot(met_avg, mapping = aes(y = wind.sp, x = 1, color = region, fill = region)) +
+  geom_violin() +
+  facet_grid(~region)
+#dew point
+met_avg[!is.na(elev_cat) & !is.na(region)] %>% 
+ggplot(met_avg, mapping = aes(y = dew.point, x = 1, color = region, fill = region)) +
+  geom_violin() +
+  facet_grid(~region)
 ```
 
 
+## 4. Use geom_jitter with geom_smooth to examine the association between dew point temperature and wind speed by region
+
+```{r}
+met_avg[!is.na(region) & !is.na(wind.sp) & !is.na(dew.point)] %>%
+  ggplot(mapping = aes(x = wind.sp, y = dew.point)) +
+  geom_point(mapping = aes(color = region)) +
+  geom_smooth(formula = y ~x, method = lm, mapping = aes(linetype = region))+
+  facet_wrap(~ region, nrow = 2)
+```
 
