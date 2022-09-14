@@ -12,6 +12,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 #library needed
 library("tidyverse")
+library("ggplot2")
+library("leaflet")
+library("data.table")
 ```
 
 ## 1. Read in the data
@@ -43,5 +46,36 @@ summary(met)
 #Generate a date variable using the functions as.Date()
 met[, ymd := as.Date(paste(year, month, day, sep = "-"))]
 
+#Using the data.table::week function, keep the observations of the first week of the month.
+met[, table(week(ymd))]
+met <- met[ week(ymd) == 31]
+```
+
+
+
+
+
+```{r}
+#Compute the mean by station of the variables temp, rh, wind.sp, vis.dist, dew.point, lat, lon, and elev.
+
+
+met_avg <- met[, .(
+  temp = mean(temp, na.rm = T),
+  rh = mean(rh, na.rm = T),
+  wind.sp = mean(wind.sp, na.rm = T),
+  vis.dist = mean(vis.dist, na.rm = T),
+  dew.point = mean(dew.point, na.rm = T),
+  lat = mean(lat, na.rm = T),
+  lon = mean(lon, na.rm = T),
+  elev = mean(elev, na.rm = T)
+), by = "USAFID"]
+
+met_avg
+```
+```{r}
+#Create a region variable for NW, SW, NE, SE based on lon = -98.00 and lat = 39.71 degrees
 
 ```
+
+
+
