@@ -1,0 +1,11 @@
+---
+title: "Lab4-data-visualization"
+author: "Xuan Huang"
+date: "2022-09-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
