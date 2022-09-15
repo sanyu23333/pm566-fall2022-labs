@@ -186,7 +186,7 @@ gg_diagnose(lm_wind_dew)
 
 ```
 
-**lindia is an extention to ggplot2 to provide streamlined plotting features of linear model diagnostic plots. Those plots provide good reference for linear model diagnostic**
+**lindia is an extention to ggplot2 to provide streamlined plotting features of linear model diagnostic plots. Those plots provide good reference for linear model diagnostic.**
 
 
 
