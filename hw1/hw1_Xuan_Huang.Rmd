@@ -1,0 +1,11 @@
+---
+title: "hw1_Xuan_Huang"
+author: "Xuan Huang"
+date: "2022-09-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
