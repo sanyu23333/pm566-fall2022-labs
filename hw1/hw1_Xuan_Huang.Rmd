@@ -26,7 +26,6 @@ library(lubridate)
 
 - 
 ```{r read and check data}
-# commit
 # read in the data
 # pm2.5 CA all sites in 2004 and 2009
 data2004 <- data.table::fread("pm25_CA_allsite_2004.csv")
