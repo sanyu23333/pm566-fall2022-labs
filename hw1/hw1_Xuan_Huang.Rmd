@@ -2,8 +2,7 @@
 title: "hw1_Xuan_Huang"
 author: "Xuan Huang"
 date: "2022-09-20"
-output: html_document
-
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -27,6 +26,7 @@ library(lubridate)
 
 - 
 ```{r read and check data}
+# commit
 # read in the data
 # pm2.5 CA all sites in 2004 and 2009
 data2004 <- data.table::fread("pm25_CA_allsite_2004.csv")
