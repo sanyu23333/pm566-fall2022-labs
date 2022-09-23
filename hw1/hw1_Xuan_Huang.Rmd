@@ -3,9 +3,268 @@ title: "hw1_Xuan_Huang"
 author: "Xuan Huang"
 date: "2022-09-20"
 output: html_document
+
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+
+```{r needed library}
+library(readr)
+library(tidyverse)
+library(data.table)
+library(janitor)
+library(leaflet)
+library(dtplyr)
+library(lubridate)
+```
+
+---
+
+### 1. Given the formulated question from the assignment description, you will now conduct EDA Checklist items 2-4. First, download 2004 and 2019 data for all sites in California from the EPA Air Quality Data website. Read in the data using data.table(). For each of the two datasets, check the dimensions, headers, footers, variable names and variable types. Check for any data issues, particularly in the key variable we are analyzing. Make sure you write up a summary of all of your findings.
+
+- 
+```{r read and check data}
+# read in the data
+# pm2.5 CA all sites in 2004 and 2009
+data2004 <- data.table::fread("pm25_CA_allsite_2004.csv")
+data2019 <- data.table::fread("pm25_CA_allsite_2019.csv")
+
+#clean the header, because some of them are hard to read at the following
+data2004 <- clean_names(data2004)
+data2019 <- clean_names(data2019)
+
+# check the dimensions and headers and footers of the data
+dim(data2004)
+head(data2004)
+tail(data2004)
+
+dim(data2019)
+head(data2019)
+tail(data2019)
+
+# Check the variable types in the data
+str(data2004)
+str(data2019)
+
+# check variables more closely
+# take a closer look at key variable
+summary(data2004)
+summary(data2004$daily_mean_pm2_5_concentration)
+summary(data2019)
+summary(data2019$daily_mean_pm2_5_concentration)
+# some negative value, remove them
+data2004 <- data2004[daily_mean_pm2_5_concentration > 0]
+summary(data2004$daily_mean_pm2_5_concentration)
+data2019 <- data2019[daily_mean_pm2_5_concentration > 0]
+summary(data2019$daily_mean_pm2_5_concentration)
+
+# check missing value
+sum(is.na(data2004))
+sum(is.na(data2004$daily_mean_pm2_5_concentration))
+sum(is.na(data2019))
+sum(is.na(data2019$daily_mean_pm2_5_concentration))
+# no missing value in key variable
+data2004 %>%
+  filter(is.na(cbsa_code))
+data2019 %>%
+  filter(is.na(cbsa_code))
+# there is some missing value in cbsa_coda, doesnt matter
+
+
+
+```
+*The row number of 2019 is larger than 2004, which means 2019 dataset will carry more power than 2004.  When we check the distribution of the daily mean of PM2.5 concentration, we found the negative concentrations of PM2.5. After research, if the atmosphere is very clean, the concentration will be 0. But if there is noise in the measurement, there will have some negative number. So we need to remove those negative value. Based on the distribution of daily mean of pm2.5 concentration, the overall mean of pm2.5 concentration in 2019 is lower than in 2004.*
+
+---
+
+### 2. Combine the two years of data into one data frame. Use the Date variable to create a new column for year, which will serve as an identifier. Change the names of the key variables so that they are easier to refer to in your code.
+
+```{r combine}
+#create identifier sperately, then combine
+data2004[, year := 2004]
+data2019[, year := 2019]
+pm_data <- rbind(data2004, data2019)
+table(pm_data$year)
+
+# change the names of the key variables
+setnames(pm_data, "daily_mean_pm2_5_concentration", "pm25")
+setnames(pm_data, "site_latitude", "lat")
+setnames(pm_data, "site_longitude", "lon")
+str(pm_data)
+```
+
+---
+
+### 3. Create a basic map in leaflet() that shows the locations of the sites (make sure to use different colors for each year). Summarize the spatial distribution of the monitoring sites.
+```{r}
+
+# generate a color pal
+temp.pal <- colorFactor(c("red", "blue"), domain = pm_data$year)
+
+#plot the map
+leaflet(pm_data) %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircles(
+    lat = ~lat, lng = ~lon,
+    label = ~year, color = ~temp.pal(year),
+    opacity = 1, fillOpacity = 1,radius = 500  ) %>%
+   addLegend('bottomleft', pal = temp.pal, values = pm_data$year,
+            title = 'year', opacity = 1)
+```
+
+*From the map of sites location, the dataset of 2019 has more sites compared to 2004. Both years have a sparse distribution of observation sites. Most of sites located along the coast and those places generally are advanced cities where lots of people lived in. Because of human activities the pm2.5 concentration may be higher than those untraversed region。*
+
+---
+
+### 4. Check for any missing or implausible values of PM in the combined dataset. Explore the proportions of each and provide a summary of any temporal patterns you see in these observations.
+
+```{r}
+sum(is.na(pm_data$pm25))
+# there is no missing value of pm
+
+summary(pm_data$pm25)
+#Before that, I've already remove those pm value less than 0.
+
+```
+
+*When we check the distribution of the daily mean of PM2.5 concentration, we found the negative concentrations of PM2.5. After research, if the atmosphere is very clean, the concentration will be 0. But if there is noise in the measurement, there will have some negative number. So we need to remove those negative value.*
+
+*As for the proportions of pm 2.5 concentration, the most of pm 2.5 concentration is from 4.4 to 11.3(first quartile to third quartile). Those locations with extremly high pm2.5 concentration may lead a bias, which increase the mean level of concentration.*
+
+---
+
+### 5. Explore the main question of interest at three different spatial levels. Create exploratory plots (e.g. boxplots, histograms, line plots) and summary statistics that best suit each level of data. Be sure to write up explanations of what you observe in these data.
+
+- state
+*first thing we need to do is calculating the Annual average level for each site*
+
+```{r}
+# check missing value of site id
+sum(is.na(pm_data$site_id))
+head(pm_data$pm25)
+# calculate the annual mean pm25 concentration for each site 
+pm25_avg <- pm_data[, .(
+  pm25_mean_site = mean(pm25)), by = c("site_id", "year")]
+str(pm25_avg)
+
+
+# merge the Annual average pm25 level for each site with orginal data
+pm_data_avgsite <- merge(
+# Data
+ x = pm_data, 
+ y = pm25_avg, 
+# List of variables to match
+ by.x = c("site_id","year"),
+ by.y = c("site_id","year"), 
+# Which obs to keep?
+ all.x = TRUE, 
+ all.y = FALSE
+ ) 
+
+length(unique(pm_data_avgsite$pm25_mean_site))
+
+summary(pm25_avg$pm25)
+table(pm25_avg$year)
+```
+
+
+
+*In state level, if we want to compare the daily PM2.5 concentration of 2019 to 2004, we can plot the boxplot for two year and put them together. Check whether the overall PM2.5 level of 2019 have decreased compare to 2004*
+
+```{r}
+# state level analysis
+ggplot(data = pm_data_avgsite, aes(y = pm25_mean_site)) +
+  geom_boxplot() +
+  facet_wrap( ~year) +
+  ggtitle("PM 2.5 concentration annual level in CA, 2004 vs 2019") 
+  
+```
+*Based on the boxplot, we found that for all sites in CA, the annual PM25 level for most sites reduced to below 10. However, because of the effect of extreme value the boxplot cannot show the different of PM2.5 in two years very well. So we can create a categorical variable named PM2.5 level to replace the concentration.*
+
+*Based on research, Most studies indicate PM2.5 at or below 12 μg/m3 is considered healthy with little to no risk from exposure. If the level goes to or above 35 μg/m3 during a 24-hour period, the air is considered unhealthy and can cause issues for people with existing breathing issues such as asthma. Prolonged exposure to levels above 50 μg/m3 can lead to serious health issues and premature mortality.(https://www.indoorairhygiene.org/pm2-5-explained/#:~:text=Most%20studies%20indicate%20PM2.,breathing%20issues%20such%20as%20asthma.)*
+
+```{r}
+# categorize the pm25 concentration
+
+pm_data_avgsite[, PM25_level := fifelse(pm25_mean_site <= 12 , "no risk",
+                    fifelse(pm25_mean_site > 12 & pm25_mean_site <= 35 , "little risk",
+                    fifelse(pm25_mean_site > 35 & pm25_mean_site <= 50, "unhealthy", "premature mortality"
+                    )))]
+
+table(pm_data_avgsite$PM25_level, pm_data_avgsite$year)
+
+# plot a bar graph show the proportion
+ggplot(data = pm_data_avgsite, aes(x = "",y = PM25_level, fill = PM25_level)) +
+  geom_bar(stat = "identity", width = 1) +
+  facet_wrap(~year) +
+  ggtitle("Proportion of PM 2.5 level in CA")
+  
+```
+*In 2019, most of sites in CA can satisfy the standard of healthy exposure(PM2.5 lower than 12). And in 2019 the proportion of no risk sites in CA is significantly higher than 2004, which means the air quality improved a lot at most sites in CA from 2004 to 2019.*
+
+
+---
+- county level
+
+```{r}
+
+# We can show the change of PM25 concentration for each county from 2004 to 2019
+pm_data_avgsite[, year_chr := fifelse(year == 2004 , "2004", "2019")]
+pm_data_avgsite %>%
+  ggplot(mapping = aes(x = county, y = pm25_mean_site, color = year_chr)) +
+  geom_point(position = "jitter") +
+  theme(text = element_text(size=10), axis.text.x = element_text(angle=90, hjust=1))+
+  labs(title = "For each county, the annual pm2.5 concentration change from 2004 to 2019", x = "county name", y = "annual for each site")
+
+```
+
+*This graph showed the PM2.5 level of each site in different county. For most of county, their annual pm2.5 level decreased from 2004 to 2019*
+
+```{r}
+# In county level, we can choose a representative county. Check the closer change of the specific county
+freq <- as.data.table(table(pm_data_avgsite$county))
+freq[which.max(N)]
+
+# here Los Angeles county has the most data.
+ggplot(data = pm_data_avgsite[county == "Los Angeles"]) + 
+ geom_line(mapping = aes(x = date, y = pm25)) +
+  facet_wrap(~year) +
+  labs(title = "In Los Angeles county, the annual change of pm25 concentration", x = "Date", y = "PM2.5 concentration") +
+  geom_hline(aes(yintercept = 12, color = "no risk") ) +
+  geom_hline(aes(yintercept = 35, color = "little risk") )
+
+
+```
+*Here, we focus on the PM2.5 concentration annual change in Los Angeles county. The data size of 2019 is larger than the data size of 2004, so broken lines in 2019 are more intensive. In 2004, most of vertex are beyond the reference line of no risk level and some of vertex surpass the little risk level. But in 2019, most of vertex are closed to the no risk level and just a few points surpass the little risk level.*
+
+---
+
+- site in los Angeles
+
+
+```{r}
+# in site level, we choose a representative site in los Angeles and take a closer look for its annual change in 2004 vs 2019
+# count the sample size for each site in Los angeles, choose one have the most sample size
+table(pm_data_avgsite[county == "Los Angeles"]$site_name)
+
+# Los Angeles-North Main Street has the most sample size(1428) in los angeles county.
+test = pm_data_avgsite[site_name == "Los Angeles-North Main Street"]
+table(test$year)
+# For Bakersfield-California, 535 data in 2004, 893 data in 2019.
+
+# create a geom point plot for Los Angeles-North Main Street, check the change from 2004 to 2019
+ggplot(data = pm_data_avgsite[site_name == "Los Angeles-North Main Street"]) + 
+ geom_point(mapping = aes(x = date, y = pm25)) +
+  facet_wrap(~year)+
+  labs(title = "In Los Angeles-North Main Street site, the annual change of pm25 concentration", x = "Date", y = "PM2.5 Concentration") +
+  geom_hline(aes(yintercept = 12, color = "no risk") ) +
+  geom_hline(aes(yintercept = 35, color = "little risk") )
+
+```
+*For the site in Los Angeles, we choose Los Angeles-North Main Street site because it has the most size of data in Los Angeles county. In 2004, about three quarters of points are beyond the no risk level. And when the start and end of the year, pm2.5 concentration passed the little risk level. In 2019, half of points are lower than no risk level. Just in the end of the year a few of points surpassed the little risk level.*
+
+**In summary, after checking three different spatial levels, we can conclude that daily concentration of PM2.5 have decreased in California over the last 15 years(from 2004 to 2019).**
 
