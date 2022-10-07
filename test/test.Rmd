@@ -1,0 +1,135 @@
+```{r}
+library(data.table)
+library(dtplyr)
+library(dplyr)
+```
+
+```{r}
+```
+
+
+```{r}
+dat <- fread("met_all.gz")
+head(dat)
+```
+
+```{r}
+# Creating a lazy table object
+dat_ldt <- lazy_dt(dat, immutable = FALSE)
+# We can use the address() function from data.table
+address(dat)
+address(dat_ldt$parent)
+```
+
+
+```{r}
+dat[, list(USAFID, lat, lon)]
+dat[, .(USAFID, lat, lon)] # Alternative 1
+dat[, c("USAFID", "lat", "lon")] # Alternative 2
+```
+
+```{r}
+class(dat)
+class(dat_ldt)
+dat_ldt %>% select(USAFID, lat, lon)
+```
+
+```{r}
+dat <- dat[,
+ .(USAFID, WBAN, year, month, day, hour, min, lat, lon, elev,
+ wind.sp, temp, atm.press)]
+# Need to redo the lazy table
+dat_ldt <- lazy_dt(dat)
+```
+
+
+```{r}
+str(dat)
+dat[temp > 18 & temp < 25] %>%
+ nrow()
+
+dat[is.na(temp)] %>%
+ nrow()
+
+dat[ !is.na(temp)] %>%
+  sample.int()
+```
+
+```{r}
+dat[, c("elev2", "windsp_scaled") := NULL] # This to delete these variables
+dat_ldt %>%
+ mutate(
+ elev2 = elev ^ 2,
+ windsp_scaled = wind.sp/sd(wind.sp,na.rm=TRUE)
+ ) %>% collect()
+```
+
+```{r}
+# Listing the names
+in_names <- c("wind.sp", "temp", "atm.press")
+in_names
+out_names <- paste0(in_names, "_scaled")
+dat[,
+ c(out_names) := lapply(.SD, function(x) x/sd(x, na.rm = TRUE)), 
+ .SDcols = in_names
+ ]
+
+head(dat[, .SD, .SDcols = out_names], n = 4)
+```
+
+```{r}
+stations <- fread("ftp://ftp.ncdc.noaa.gov/pub/data/noaa/isd-history.csv")
+stations[, USAF := as.integer(USAF)]
+str(stations)
+table(stations$CTRY)
+# Dealing with NAs and 999999
+stations[, USAF := fifelse(USAF == 999999, NA_integer_, USAF)]
+stations[, CTRY := fifelse(CTRY == "", NA_character_, CTRY)]
+stations[, STATE := fifelse(STATE == "", NA_character_, STATE)]
+
+str(stations)
+dim(stations)
+# Selecting the three relevant columns, and keeping unique records
+stations <- unique(stations[, list(USAF, CTRY, STATE)])
+dim(stations)
+table(stations$CTRY)
+# Dropping NAs
+stations <- stations[!is.na(USAF)]
+head(stations, n = 4)
+```
+
+```{r}
+str(dat)
+
+str(stations)
+range(dat$USAFID)
+range(stations$USAF, na.rm = T)
+x_main <- merge(
+# Data
+ x = dat, 
+ y = stations, 
+# List of variables to match
+ by.x = "USAFID",
+ by.y = "USAF", 
+# Which obs to keep?
+ all.x = TRUE, 
+ all.y = FALSE
+ )
+str(x_main)
+table(x_main$CTRY)
+# x 是主要的，y是来补充的
+
+
+merge(
+# Data
+ x = dat, 
+ y = stations, 
+# List of variables to match
+ by.x = "USAFID",
+ by.y = "USAF", 
+# Which obs to keep?
+ all.x = F, 
+ all.y = T
+ ) %>% str()
+```
+
